@@ -3541,18 +3541,21 @@ UI_MapCountByGameType
 */
 static int UI_MapCountByGameType(qboolean singlePlayer) {
 	int i, c, game;
+	qboolean isTeamDM;
 	c = 0;
 	game = singlePlayer ? uiInfo.gameTypes[ui_gameType.integer].gtEnum : uiInfo.gameTypes[ui_netGameType.integer].gtEnum;
 	if (game == GT_SINGLE_PLAYER) {
 		game++;
-	} 
-	if (game == GT_TEAM) {
+	}
+	isTeamDM = (game == GT_TEAM);
+	if (isTeamDM) {
 		game = GT_FFA;
 	}
 
 	for (i = 0; i < uiInfo.mapCount; i++) {
 		uiInfo.mapList[i].active = qfalse;
-		if ( uiInfo.mapList[i].typeBits & (1 << game)) {
+		if ( (uiInfo.mapList[i].typeBits & (1 << game)) ||
+			 (isTeamDM && (uiInfo.mapList[i].typeBits & (1 << GT_TEAM))) ) {
 			if (singlePlayer) {
 				if (!(uiInfo.mapList[i].typeBits & (1 << GT_SINGLE_PLAYER))) {
 					continue;

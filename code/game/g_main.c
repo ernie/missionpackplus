@@ -524,7 +524,198 @@ static void G_UpdateCvars( void ) {
 }
 
 
-static void G_LocateSpawnSpots( void ) 
+/*
+===============
+G_ComputeBSPChecksum
+===============
+*/
+#define SPAWN_CACHE_FILE "spawncache.dat"
+
+static unsigned int G_ComputeBSPChecksum( const char *mapname, int *outFilesize ) {
+	fileHandle_t f;
+	char path[MAX_QPATH];
+	unsigned char buf[4096];
+	unsigned int checksum = 0;
+	int filesize, readlen, i;
+
+	Com_sprintf( path, sizeof( path ), "maps/%s.bsp", mapname );
+	filesize = trap_FS_FOpenFile( path, &f, FS_READ );
+
+	if ( outFilesize ) {
+		*outFilesize = filesize;
+	}
+
+	if ( filesize < 0 || f == FS_INVALID_HANDLE ) {
+		return 0;
+	}
+
+	// Read first 4KB (or less if file smaller)
+	readlen = ( filesize > 4096 ) ? 4096 : filesize;
+	trap_FS_Read( buf, readlen, f );
+	trap_FS_FCloseFile( f );
+
+	// Simple rolling checksum
+	for ( i = 0; i < readlen; i++ ) {
+		checksum = checksum * 31 + buf[i];
+	}
+	return checksum;
+}
+
+/*
+===============
+G_ValidateSpawnCache
+===============
+*/
+static void G_ValidateSpawnCache( void ) {
+	fileHandle_t f;
+	int len;
+	char buf[16384];
+	char *p, *token;
+	int filesize;
+	unsigned int checksum;
+	qboolean found = qfalse;
+	qboolean needsUpdate = qfalse;
+	char mapname[MAX_QPATH];
+	char outbuf[16384];
+	int outlen = 0;
+
+	Q_strncpyz( mapname, g_mapname.string, sizeof( mapname ) );
+
+	// Get current BSP checksum
+	checksum = G_ComputeBSPChecksum( mapname, &filesize );
+	if ( filesize <= 0 ) {
+		return;  // Can't read BSP
+	}
+
+	// Read cache file
+	len = trap_FS_FOpenFile( SPAWN_CACHE_FILE, &f, FS_READ );
+	if ( len < 0 || f == FS_INVALID_HANDLE ) {
+		// No cache file - create one with this map's entry
+		trap_FS_FOpenFile( SPAWN_CACHE_FILE, &f, FS_WRITE );
+		if ( f != FS_INVALID_HANDLE ) {
+			Com_sprintf( buf, sizeof( buf ), "%s,%d,%x,%d,%d\n",
+				mapname, filesize, checksum,
+				level.numSpawnSpotsFFA, level.numSpawnSpotsTeam );
+			trap_FS_Write( buf, strlen( buf ), f );
+			trap_FS_FCloseFile( f );
+			G_Printf( "Created spawn cache with %s\n", mapname );
+		}
+		return;
+	}
+
+	if ( len >= sizeof( buf ) - 1 ) {
+		trap_FS_FCloseFile( f );
+		return;
+	}
+
+	trap_FS_Read( buf, len, f );
+	buf[len] = '\0';
+	trap_FS_FCloseFile( f );
+
+	// Parse and check cache
+	p = buf;
+	while ( *p ) {
+		char entryMapname[MAX_QPATH];
+		int entryFilesize;
+		unsigned int entryChecksum;
+		int entryFFA, entryTeam;
+		char *lineStart = p;
+
+		// Skip comments and empty lines
+		if ( *p == '/' || *p == '\n' || *p == '\r' ) {
+			while ( *p && *p != '\n' ) {
+				outbuf[outlen++] = *p++;
+			}
+			if ( *p ) outbuf[outlen++] = *p++;
+			continue;
+		}
+
+		// Parse mapname
+		token = p;
+		while ( *p && *p != ',' ) p++;
+		if ( !*p ) break;
+		*p++ = '\0';
+		Q_strncpyz( entryMapname, token, sizeof( entryMapname ) );
+
+		// Parse filesize
+		token = p;
+		while ( *p && *p != ',' ) p++;
+		if ( !*p ) break;
+		*p++ = '\0';
+		entryFilesize = atoi( token );
+
+		// Parse checksum
+		token = p;
+		while ( *p && *p != ',' ) p++;
+		if ( !*p ) break;
+		*p++ = '\0';
+		entryChecksum = strtoul( token, NULL, 16 );
+
+		// Parse ffa
+		token = p;
+		while ( *p && *p != ',' ) p++;
+		if ( !*p ) break;
+		*p++ = '\0';
+		entryFFA = atoi( token );
+
+		// Parse team
+		token = p;
+		while ( *p && *p != '\n' && *p != '\r' ) p++;
+		{
+			char *endToken = p;
+			while ( *p == '\n' || *p == '\r' ) p++;
+			*endToken = '\0';
+			entryTeam = atoi( token );
+		}
+
+		// Check if this is our map
+		if ( Q_stricmp( entryMapname, mapname ) == 0 ) {
+			found = qtrue;
+			// Check if cache is stale
+			if ( entryFilesize != filesize || entryChecksum != checksum ) {
+				// Update entry with current data
+				outlen += Com_sprintf( outbuf + outlen, sizeof( outbuf ) - outlen,
+					"%s,%d,%x,%d,%d\n",
+					mapname, filesize, checksum,
+					level.numSpawnSpotsFFA, level.numSpawnSpotsTeam );
+				needsUpdate = qtrue;
+				G_Printf( "Spawn cache updated for %s (checksum changed)\n", mapname );
+			} else {
+				// Entry is valid, keep it
+				outlen += Com_sprintf( outbuf + outlen, sizeof( outbuf ) - outlen,
+					"%s,%d,%x,%d,%d\n",
+					entryMapname, entryFilesize, entryChecksum, entryFFA, entryTeam );
+			}
+		} else {
+			// Keep other map entries
+			outlen += Com_sprintf( outbuf + outlen, sizeof( outbuf ) - outlen,
+				"%s,%d,%x,%d,%d\n",
+				entryMapname, entryFilesize, entryChecksum, entryFFA, entryTeam );
+		}
+	}
+
+	// If map wasn't found, add it
+	if ( !found ) {
+		outlen += Com_sprintf( outbuf + outlen, sizeof( outbuf ) - outlen,
+			"%s,%d,%x,%d,%d\n",
+			mapname, filesize, checksum,
+			level.numSpawnSpotsFFA, level.numSpawnSpotsTeam );
+		needsUpdate = qtrue;
+		G_Printf( "Spawn cache: added %s\n", mapname );
+	}
+
+	// Write updated cache if needed
+	if ( needsUpdate ) {
+		trap_FS_FOpenFile( SPAWN_CACHE_FILE, &f, FS_WRITE );
+		if ( f != FS_INVALID_HANDLE ) {
+			trap_FS_Write( outbuf, outlen, f );
+			trap_FS_FCloseFile( f );
+		}
+	}
+}
+
+
+static void G_LocateSpawnSpots( void )
 {
 	gentity_t			*ent;
 	int i, n;
@@ -711,6 +902,9 @@ static void G_InitGame( int levelTime, int randomSeed, int restart ) {
 	SaveRegisteredItems();
 
 	G_LocateSpawnSpots();
+
+	// Validate/update spawn cache for UI dynamic GT_TEAM support
+	G_ValidateSpawnCache();
 
 	G_Printf ("-----------------------------------\n");
 
