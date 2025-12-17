@@ -586,6 +586,32 @@ static unsigned int G_ParseHex( const char *str ) {
 
 /*
 ===============
+G_ToHex
+===============
+*/
+static void G_ToHex( unsigned int val, char *out, int outSize ) {
+	static const char hexDigits[] = "0123456789abcdef";
+	char tmp[9];
+	int i;
+
+	if ( outSize < 9 ) {
+		out[0] = '\0';
+		return;
+	}
+
+	for ( i = 7; i >= 0; i-- ) {
+		tmp[i] = hexDigits[val & 0xF];
+		val >>= 4;
+	}
+	tmp[8] = '\0';
+
+	for ( i = 0; i < 9; i++ ) {
+		out[i] = tmp[i];
+	}
+}
+
+/*
+===============
 G_ValidateSpawnCache
 ===============
 */
@@ -601,6 +627,7 @@ static void G_ValidateSpawnCache( void ) {
 	char mapname[MAX_QPATH];
 	static char outbuf[16384];
 	int outlen = 0;
+	char hexChecksum[16];
 
 	Q_strncpyz( mapname, g_mapname.string, sizeof( mapname ) );
 
@@ -616,8 +643,9 @@ static void G_ValidateSpawnCache( void ) {
 		// No cache file - create one with this map's entry
 		trap_FS_FOpenFile( SPAWN_CACHE_FILE, &f, FS_WRITE );
 		if ( f != FS_INVALID_HANDLE ) {
-			Com_sprintf( buf, sizeof( buf ), "%s,%d,%x,%d,%d\n",
-				mapname, filesize, checksum,
+			G_ToHex( checksum, hexChecksum, sizeof( hexChecksum ) );
+			Com_sprintf( buf, sizeof( buf ), "%s,%d,%s,%d,%d\n",
+				mapname, filesize, hexChecksum,
 				level.numSpawnSpotsFFA, level.numSpawnSpotsTeam );
 			trap_FS_Write( buf, strlen( buf ), f );
 			trap_FS_FCloseFile( f );
@@ -697,31 +725,35 @@ static void G_ValidateSpawnCache( void ) {
 			// Check if cache is stale
 			if ( entryFilesize != filesize || entryChecksum != checksum ) {
 				// Update entry with current data
+				G_ToHex( checksum, hexChecksum, sizeof( hexChecksum ) );
 				outlen += Com_sprintf( outbuf + outlen, sizeof( outbuf ) - outlen,
-					"%s,%d,%x,%d,%d\n",
-					mapname, filesize, checksum,
+					"%s,%d,%s,%d,%d\n",
+					mapname, filesize, hexChecksum,
 					level.numSpawnSpotsFFA, level.numSpawnSpotsTeam );
 				needsUpdate = qtrue;
 				G_Printf( "Spawn cache updated for %s (checksum changed)\n", mapname );
 			} else {
 				// Entry is valid, keep it
+				G_ToHex( entryChecksum, hexChecksum, sizeof( hexChecksum ) );
 				outlen += Com_sprintf( outbuf + outlen, sizeof( outbuf ) - outlen,
-					"%s,%d,%x,%d,%d\n",
-					entryMapname, entryFilesize, entryChecksum, entryFFA, entryTeam );
+					"%s,%d,%s,%d,%d\n",
+					entryMapname, entryFilesize, hexChecksum, entryFFA, entryTeam );
 			}
 		} else {
 			// Keep other map entries
+			G_ToHex( entryChecksum, hexChecksum, sizeof( hexChecksum ) );
 			outlen += Com_sprintf( outbuf + outlen, sizeof( outbuf ) - outlen,
-				"%s,%d,%x,%d,%d\n",
-				entryMapname, entryFilesize, entryChecksum, entryFFA, entryTeam );
+				"%s,%d,%s,%d,%d\n",
+				entryMapname, entryFilesize, hexChecksum, entryFFA, entryTeam );
 		}
 	}
 
 	// If map wasn't found, add it
 	if ( !found ) {
+		G_ToHex( checksum, hexChecksum, sizeof( hexChecksum ) );
 		outlen += Com_sprintf( outbuf + outlen, sizeof( outbuf ) - outlen,
-			"%s,%d,%x,%d,%d\n",
-			mapname, filesize, checksum,
+			"%s,%d,%s,%d,%d\n",
+			mapname, filesize, hexChecksum,
 			level.numSpawnSpotsFFA, level.numSpawnSpotsTeam );
 		needsUpdate = qtrue;
 		G_Printf( "Spawn cache: added %s\n", mapname );

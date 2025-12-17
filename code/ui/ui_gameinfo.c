@@ -68,6 +68,33 @@ static unsigned int UI_ParseHex( const char *str ) {
 
 /*
 ===============
+UI_ToHex
+===============
+*/
+static void UI_ToHex( unsigned int val, char *out, int outSize ) {
+	static const char hexDigits[] = "0123456789abcdef";
+	char tmp[9];
+	int i;
+
+	if ( outSize < 9 ) {
+		out[0] = '\0';
+		return;
+	}
+
+	for ( i = 7; i >= 0; i-- ) {
+		tmp[i] = hexDigits[val & 0xF];
+		val >>= 4;
+	}
+	tmp[8] = '\0';
+
+	// Copy to output
+	for ( i = 0; i < 9; i++ ) {
+		out[i] = tmp[i];
+	}
+}
+
+/*
+===============
 UI_ParseInfos
 ===============
 */
@@ -210,7 +237,7 @@ static qboolean UI_ScanBSPSpawns( const char *mapname, int *ffa, int *team ) {
 	char path[MAX_QPATH];
 	int filesize;
 	int entOffset, entLength;
-	char *entString;
+	static char entString[SPAWN_CACHE_MAX_ENTSTRING + 1];
 	char *p;
 	int header[2 + 17*2];  // magic, version, 17 lumps (offset, length each)
 
@@ -247,13 +274,7 @@ static qboolean UI_ScanBSPSpawns( const char *mapname, int *ffa, int *team ) {
 		return qfalse;
 	}
 
-	// Allocate and read entity string
-	entString = UI_Alloc( entLength + 1 );
-	if ( !entString ) {
-		trap_FS_FCloseFile( f );
-		return qfalse;
-	}
-
+	// Read entity string into static buffer
 	trap_FS_Seek( f, entOffset, FS_SEEK_SET );
 	trap_FS_Read( entString, entLength, f );
 	entString[entLength] = '\0';
@@ -294,7 +315,6 @@ static qboolean UI_ScanBSPSpawns( const char *mapname, int *ffa, int *team ) {
 		p++;
 	}
 
-	// Note: UI_Alloc memory is not freed - it's from a pool that persists
 	return qtrue;
 }
 
@@ -395,6 +415,7 @@ static void UI_SaveSpawnCache( void ) {
 	fileHandle_t f;
 	int i;
 	char line[256];
+	char hexChecksum[16];
 
 	if ( !spawnCacheDirty ) {
 		return;
@@ -407,10 +428,11 @@ static void UI_SaveSpawnCache( void ) {
 	}
 
 	for ( i = 0; i < numSpawnCacheEntries; i++ ) {
-		Com_sprintf( line, sizeof( line ), "%s,%d,%x,%d,%d\n",
+		UI_ToHex( spawnCache[i].checksum, hexChecksum, sizeof( hexChecksum ) );
+		Com_sprintf( line, sizeof( line ), "%s,%d,%s,%d,%d\n",
 			spawnCache[i].mapname,
 			spawnCache[i].filesize,
-			spawnCache[i].checksum,
+			hexChecksum,
 			spawnCache[i].ffaSpawns,
 			spawnCache[i].teamSpawns );
 		trap_FS_Write( line, strlen( line ), f );
