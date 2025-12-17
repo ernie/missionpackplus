@@ -1016,16 +1016,18 @@ gentity_t *SelectRandomTeamSpawnPoint( gentity_t *ent, int teamstate, team_t tea
 	int			n;
 	qboolean	checkState;
 	qboolean	checkTelefrag;
+	qboolean	checkTimestamp;
 
 	if ( team != TEAM_RED && team != TEAM_BLUE )
 		return NULL;
 
-	checkMask = 3;
+	checkMask = 7;
 
 __rescan:
 
 	checkTelefrag = checkMask & 1;
 	checkState = checkMask & 2;
+	checkTimestamp = checkMask & 4;
 	numSpots = 0;
 
 	for ( n = 0 ; n < level.numSpawnSpots ; n++ ) {
@@ -1043,6 +1045,8 @@ __rescan:
 					continue;
 			}
 		}
+		if ( checkTimestamp && spot->timestamp == level.time )
+			continue;
 		spots[ numSpots++ ] = spot;
 		if ( numSpots >= MAX_TEAM_SPAWN_POINTS )
 			break;
@@ -1057,6 +1061,7 @@ __rescan:
 	}
 
 	selection = rand() % numSpots;
+	spots[ selection ]->timestamp = level.time;
 	return spots[ selection ];
 }
 
@@ -1068,6 +1073,37 @@ SelectCTFSpawnPoint
 */
 gentity_t *SelectCTFSpawnPoint( gentity_t *ent, team_t team, int teamstate, vec3_t origin, vec3_t angles ) {
 	gentity_t	*spot;
+
+	// In team DM, prefer FFA spawns but only if we can find one that
+	// won't telefrag and hasn't been used this frame
+	if ( g_gametype.integer == GT_TEAM && level.numSpawnSpotsFFA > 0 ) {
+		int n;
+		gentity_t *ffaSpots[64];
+		int numFFA = 0;
+
+		// Collect valid FFA spawns (strict: no telefrag, not used this frame)
+		for ( n = 0; n < level.numSpawnSpots && numFFA < 64; n++ ) {
+			spot = level.spawnSpots[n];
+			if ( spot->fteam != TEAM_FREE )
+				continue;
+			if ( SpotWouldTelefrag( spot ) )
+				continue;
+			if ( spot->timestamp == level.time )
+				continue;
+			ffaSpots[numFFA++] = spot;
+		}
+
+		if ( numFFA > 0 ) {
+			// Pick randomly from valid FFA spawns
+			spot = ffaSpots[ rand() % numFFA ];
+			spot->timestamp = level.time;
+			VectorCopy( spot->s.origin, origin );
+			VectorCopy( spot->s.angles, angles );
+			origin[2] += 9.0f;
+			return spot;
+		}
+		// No valid FFA spawn found, fall through to team spawns
+	}
 
 	spot = SelectRandomTeamSpawnPoint( ent, teamstate, team );
 
