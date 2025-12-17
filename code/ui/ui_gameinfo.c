@@ -259,40 +259,39 @@ static qboolean UI_ScanBSPSpawns( const char *mapname, int *ffa, int *team ) {
 	entString[entLength] = '\0';
 	trap_FS_FCloseFile( f );
 
-	// Count spawn entities by searching for classnames
+	// Count spawn entities by searching for classname patterns
+	// FFA spawns: info_player_deathmatch, info_player_start
 	p = entString;
-	while ( ( p = strstr( p, "\"classname\"" ) ) != NULL ) {
-		p += 11;  // skip past "classname"
+	while ( ( p = strstr( p, "\"info_player_deathmatch\"" ) ) != NULL ) {
+		(*ffa)++;
+		p++;
+	}
+	p = entString;
+	while ( ( p = strstr( p, "\"info_player_start\"" ) ) != NULL ) {
+		(*ffa)++;
+		p++;
+	}
 
-		// Check for FFA spawns
-		if ( strstr( p, "\"info_player_deathmatch\"" ) == p ||
-			 strstr( p, "\"info_player_start\"" ) == p ) {
-			// Make sure this is the value, not another key
-			char *nl = strchr( p, '\n' );
-			char *dm = strstr( p, "\"info_player_deathmatch\"" );
-			char *st = strstr( p, "\"info_player_start\"" );
-			if ( ( dm && ( !nl || dm < nl ) ) || ( st && ( !nl || st < nl ) ) ) {
-				(*ffa)++;
-			}
-		}
-
-		// Check for team spawns (CTF spawn points)
-		if ( strstr( p, "\"team_CTF_redspawn\"" ) == p ||
-			 strstr( p, "\"team_CTF_bluespawn\"" ) == p ||
-			 strstr( p, "\"team_CTF_redplayer\"" ) == p ||
-			 strstr( p, "\"team_CTF_blueplayer\"" ) == p ) {
-			char *nl = strchr( p, '\n' );
-			char *rs = strstr( p, "\"team_CTF_redspawn\"" );
-			char *bs = strstr( p, "\"team_CTF_bluespawn\"" );
-			char *rp = strstr( p, "\"team_CTF_redplayer\"" );
-			char *bp = strstr( p, "\"team_CTF_blueplayer\"" );
-			if ( ( rs && ( !nl || rs < nl ) ) ||
-				 ( bs && ( !nl || bs < nl ) ) ||
-				 ( rp && ( !nl || rp < nl ) ) ||
-				 ( bp && ( !nl || bp < nl ) ) ) {
-				(*team)++;
-			}
-		}
+	// Team spawns: team_CTF_redspawn, team_CTF_bluespawn, team_CTF_redplayer, team_CTF_blueplayer
+	p = entString;
+	while ( ( p = strstr( p, "\"team_CTF_redspawn\"" ) ) != NULL ) {
+		(*team)++;
+		p++;
+	}
+	p = entString;
+	while ( ( p = strstr( p, "\"team_CTF_bluespawn\"" ) ) != NULL ) {
+		(*team)++;
+		p++;
+	}
+	p = entString;
+	while ( ( p = strstr( p, "\"team_CTF_redplayer\"" ) ) != NULL ) {
+		(*team)++;
+		p++;
+	}
+	p = entString;
+	while ( ( p = strstr( p, "\"team_CTF_blueplayer\"" ) ) != NULL ) {
+		(*team)++;
+		p++;
 	}
 
 	// Note: UI_Alloc memory is not freed - it's from a pool that persists
