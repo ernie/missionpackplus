@@ -45,6 +45,29 @@ static vmCvar_t ui_teamDMSpawnThreshold;
 
 /*
 ===============
+UI_ParseHex
+===============
+*/
+static unsigned int UI_ParseHex( const char *str ) {
+	unsigned int val = 0;
+	char c;
+
+	while ( ( c = *str++ ) != '\0' ) {
+		if ( c >= '0' && c <= '9' ) {
+			val = ( val << 4 ) + ( c - '0' );
+		} else if ( c >= 'a' && c <= 'f' ) {
+			val = ( val << 4 ) + ( c - 'a' + 10 );
+		} else if ( c >= 'A' && c <= 'F' ) {
+			val = ( val << 4 ) + ( c - 'A' + 10 );
+		} else {
+			break;
+		}
+	}
+	return val;
+}
+
+/*
+===============
 UI_ParseInfos
 ===============
 */
@@ -336,7 +359,7 @@ static void UI_LoadSpawnCache( void ) {
 		while ( *p && *p != ',' ) p++;
 		if ( !*p ) break;
 		*p++ = '\0';
-		entry->checksum = strtoul( token, NULL, 16 );
+		entry->checksum = UI_ParseHex( token );
 
 		// Parse ffa spawns
 		token = p;

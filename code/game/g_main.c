@@ -563,6 +563,29 @@ static unsigned int G_ComputeBSPChecksum( const char *mapname, int *outFilesize 
 
 /*
 ===============
+G_ParseHex
+===============
+*/
+static unsigned int G_ParseHex( const char *str ) {
+	unsigned int val = 0;
+	char c;
+
+	while ( ( c = *str++ ) != '\0' ) {
+		if ( c >= '0' && c <= '9' ) {
+			val = ( val << 4 ) + ( c - '0' );
+		} else if ( c >= 'a' && c <= 'f' ) {
+			val = ( val << 4 ) + ( c - 'a' + 10 );
+		} else if ( c >= 'A' && c <= 'F' ) {
+			val = ( val << 4 ) + ( c - 'A' + 10 );
+		} else {
+			break;
+		}
+	}
+	return val;
+}
+
+/*
+===============
 G_ValidateSpawnCache
 ===============
 */
@@ -649,7 +672,7 @@ static void G_ValidateSpawnCache( void ) {
 		while ( *p && *p != ',' ) p++;
 		if ( !*p ) break;
 		*p++ = '\0';
-		entryChecksum = strtoul( token, NULL, 16 );
+		entryChecksum = G_ParseHex( token );
 
 		// Parse ffa
 		token = p;
