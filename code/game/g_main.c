@@ -569,14 +569,14 @@ G_ValidateSpawnCache
 static void G_ValidateSpawnCache( void ) {
 	fileHandle_t f;
 	int len;
-	char buf[16384];
+	static char buf[16384];
 	char *p, *token;
 	int filesize;
 	unsigned int checksum;
 	qboolean found = qfalse;
 	qboolean needsUpdate = qfalse;
 	char mapname[MAX_QPATH];
-	char outbuf[16384];
+	static char outbuf[16384];
 	int outlen = 0;
 
 	Q_strncpyz( mapname, g_mapname.string, sizeof( mapname ) );
