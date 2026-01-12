@@ -29,6 +29,9 @@ G_CVAR( g_fraglimit, "fraglimit", "20", CVAR_SERVERINFO | CVAR_ARCHIVE | CVAR_NO
 G_CVAR( g_timelimit, "timelimit", "0", CVAR_SERVERINFO | CVAR_ARCHIVE | CVAR_NORESTART, 0, qtrue, qfalse )
 G_CVAR( g_capturelimit, "capturelimit", "8", CVAR_SERVERINFO | CVAR_ARCHIVE | CVAR_NORESTART, 0, qtrue, qfalse )
 
+G_CVAR( g_redscore, "g_redscore", "0", CVAR_SERVERINFO | CVAR_ROM, 0, qfalse, qfalse )
+G_CVAR( g_bluescore, "g_bluescore", "0", CVAR_SERVERINFO | CVAR_ROM, 0, qfalse, qfalse )
+
 G_CVAR( g_synchronousClients, "g_synchronousClients", "0", CVAR_SYSTEMINFO, 0, qfalse, qfalse )
 
 G_CVAR( g_friendlyFire, "g_friendlyFire", "0", CVAR_ARCHIVE, 0, qtrue, qfalse )

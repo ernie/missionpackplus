@@ -1084,6 +1084,8 @@ void CalculateRanks( void ) {
 	if ( g_gametype.integer >= GT_TEAM ) {
 		trap_SetConfigstring( CS_SCORES1, va("%i", level.teamScores[TEAM_RED] ) );
 		trap_SetConfigstring( CS_SCORES2, va("%i", level.teamScores[TEAM_BLUE] ) );
+		trap_Cvar_Set( "g_redscore", va("%i", level.teamScores[TEAM_RED]) );
+		trap_Cvar_Set( "g_bluescore", va("%i", level.teamScores[TEAM_BLUE]) );
 	} else {
 		if ( level.numConnectedClients == 0 ) {
 			trap_SetConfigstring( CS_SCORES1, va("%i", SCORE_NOT_PRESENT) );

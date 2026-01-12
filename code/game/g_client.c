@@ -723,14 +723,19 @@ qboolean ClientUserinfoChanged( int clientNum ) {
 			Info_ValueForKey( userinfo, "skill" ), teamTask, teamLeader );
 	} else {
 		s = va("n\\%s\\t\\%i\\model\\%s\\hmodel\\%s\\c1\\%s\\c2\\%s\\hc\\%i\\w\\%i\\l\\%i\\tt\\%d\\tl\\%d",
-			client->pers.netname, client->sess.sessionTeam, model, headModel, c1, c2, 
+			client->pers.netname, client->sess.sessionTeam, model, headModel, c1, c2,
 			client->pers.maxHealth, client->sess.wins, client->sess.losses, teamTask, teamLeader );
 	}
 
 	trap_SetConfigstring( CS_PLAYERS+clientNum, s );
 
-	// this is not the userinfo, more like the configstring actually
-	G_LogPrintf( "ClientUserinfoChanged: %i %s\n", clientNum, s );
+	// log with cl_guid for player tracking (not sent to clients)
+	if ( ent->r.svFlags & SVF_BOT ) {
+		G_LogPrintf( "ClientUserinfoChanged: %i %s\n", clientNum, s );
+	} else {
+		G_LogPrintf( "ClientUserinfoChanged: %i %s\\g\\%s\n", clientNum, s,
+			Info_ValueForKey( userinfo, "cl_guid" ) );
+	}
 
 	return qtrue;
 }
