@@ -1001,21 +1001,32 @@ static void G_Say( gentity_t *ent, gentity_t *target, int mode, const char *chat
 	switch ( mode ) {
 	default:
 	case SAY_ALL:
-		G_LogPrintf( "say: %s: %s\n", ent->client->pers.netname, chatText );
+		// Log chat from humans only (not bots)
+		if ( !(ent->r.svFlags & SVF_BOT) ) {
+			G_LogPrintf( "Say: %d \"%s\": %s\n", (int)(ent - g_entities), ent->client->pers.netname, chatText );
+		}
 		Com_sprintf (name, sizeof(name), "%s%c%c"EC": ", ent->client->pers.netname, Q_COLOR_ESCAPE, COLOR_WHITE );
 		color = COLOR_GREEN;
 		break;
 	case SAY_TEAM:
-		G_LogPrintf( "sayteam: %s: %s\n", ent->client->pers.netname, chatText );
+		// Log chat from humans only (not bots)
+		if ( !(ent->r.svFlags & SVF_BOT) ) {
+			G_LogPrintf( "SayTeam: %d \"%s\": %s\n", (int)(ent - g_entities), ent->client->pers.netname, chatText );
+		}
 		if (Team_GetLocationMsg(ent, location, sizeof(location)))
-			Com_sprintf (name, sizeof(name), EC"(%s%c%c"EC") (%s)"EC": ", 
+			Com_sprintf (name, sizeof(name), EC"(%s%c%c"EC") (%s)"EC": ",
 				ent->client->pers.netname, Q_COLOR_ESCAPE, COLOR_WHITE, location);
 		else
-			Com_sprintf (name, sizeof(name), EC"(%s%c%c"EC")"EC": ", 
+			Com_sprintf (name, sizeof(name), EC"(%s%c%c"EC")"EC": ",
 				ent->client->pers.netname, Q_COLOR_ESCAPE, COLOR_WHITE );
 		color = COLOR_CYAN;
 		break;
 	case SAY_TELL:
+		// Log tell from humans only (not bots)
+		if ( !(ent->r.svFlags & SVF_BOT) && target && target->client ) {
+			G_LogPrintf( "Tell: %d %d \"%s\" \"%s\": %s\n", (int)(ent - g_entities), (int)(target - g_entities),
+				ent->client->pers.netname, target->client->pers.netname, chatText );
+		}
 		if (target && target->inuse && target->client && g_gametype.integer >= GT_TEAM &&
 			target->client->sess.sessionTeam == ent->client->sess.sessionTeam &&
 			Team_GetLocationMsg(ent, location, sizeof(location)))

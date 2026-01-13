@@ -509,10 +509,13 @@ qboolean	ConsoleCommand( void ) {
 
 	if (g_dedicated.integer) {
 		if (Q_stricmp (cmd, "say") == 0) {
-			G_BroadcastServerCommand( -1, va("print \"server: %s\"", ConcatArgs(1) ) );
+			char *msg = ConcatArgs(1);
+			G_LogPrintf( "SayRcon: %s\n", msg );
+			G_BroadcastServerCommand( -1, va("print \"server: %s\"", msg ) );
 			return qtrue;
 		}
 		// everything else will also be printed as a say command
+		G_LogPrintf( "SayRcon: %s\n", ConcatArgs(0) );
 		G_BroadcastServerCommand( -1, va("print \"server: %s\"", ConcatArgs(0) ) );
 		return qtrue;
 	}
