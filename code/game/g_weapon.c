@@ -584,6 +584,9 @@ void weapon_railgun_fire( gentity_t *ent ) {
 			ent->client->ps.eFlags &= ~EF_AWARDS;
 			ent->client->ps.eFlags |= EF_AWARD_IMPRESSIVE;
 			ent->client->rewardTime = level.time + REWARD_SPRITE_TIME;
+
+			G_LogPrintf( "Award: %d impressive: %s\n",
+				ent->client->ps.clientNum, ent->client->pers.netname );
 		}
 		ent->client->accuracy_hits++;
 	}

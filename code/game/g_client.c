@@ -1292,6 +1292,11 @@ void ClientSpawn(gentity_t *ent) {
 
 	// clear entity state values
 	BG_PlayerStateToEntityState( &client->ps, &ent->s, qtrue );
+
+	// log spawn for non-spectators when match is active
+	if ( !isSpectator && level.warmupTime == 0 ) {
+		G_LogPrintf( "Spawn: %d: %s\n", index, client->pers.netname );
+	}
 }
 
 

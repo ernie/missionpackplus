@@ -729,6 +729,12 @@ qboolean SetTeam( gentity_t *ent, const char *s ) {
 	client->sess.spectatorState = specState;
 	client->sess.spectatorClient = specClient;
 
+	// Log team change
+	if ( oldTeam != team ) {
+		G_LogPrintf( "TeamChange: %d %d %d: %s\n",
+			clientNum, oldTeam, team, client->pers.netname );
+	}
+
 	checkTeamLeader = client->sess.teamLeader;
 	client->sess.teamLeader = qfalse;
 

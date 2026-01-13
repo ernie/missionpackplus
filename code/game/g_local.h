@@ -6,6 +6,25 @@
 #include "bg_public.h"
 #include "g_public.h"
 
+struct gentity_s;  // Forward declaration
+
+// Team game state (for CTF flag status etc.)
+typedef struct teamgame_s {
+	float			last_flag_capture;
+	int				last_capture_team;
+	flagStatus_t	redStatus;	// CTF
+	flagStatus_t	blueStatus;	// CTF
+	flagStatus_t	flagStatus;	// One Flag CTF
+	int				redTakenTime;
+	int				blueTakenTime;
+	int				redObeliskAttackedTime;
+	int				blueObeliskAttackedTime;
+	struct gentity_s	*redObelisk;	// Obelisk entity for red team
+	struct gentity_s	*blueObelisk;	// Obelisk entity for blue team
+} teamgame_t;
+
+extern teamgame_t teamgame;
+
 //==================================================================
 
 // the "gameversion" client command will print this plus compile date
@@ -657,6 +676,7 @@ void FindIntermissionPoint( void );
 void SetLeader( team_t team, int client );
 void CheckTeamLeader( team_t team );
 void G_RunThink (gentity_t *ent);
+void G_UpdateMatchStateCvars( void );
 void QDECL G_LogPrintf( const char *fmt, ... );
 void QDECL G_Printf( const char *fmt, ... );
 void QDECL G_Error( const char *fmt, ... );
@@ -685,6 +705,7 @@ qboolean OnSameTeam( gentity_t *ent1, gentity_t *ent2 );
 void Team_CheckDroppedItem( gentity_t *dropped );
 qboolean CheckObeliskAttack( gentity_t *obelisk, gentity_t *attacker );
 void Team_ResetFlags( void );
+int Team_GetFlagCarrier( int flagPowerup );
 
 //
 // g_mem.c

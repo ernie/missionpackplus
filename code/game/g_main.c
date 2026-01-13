@@ -270,6 +270,18 @@ void G_RegisterCvars( void ) {
 	// force g_doWarmup to 1
 	trap_Cvar_Register( NULL, "g_doWarmup", "1", CVAR_ROM );
 	trap_Cvar_Set( "g_doWarmup", "1" );
+
+	// Register stats cvars (exposed via getstatus for external tools)
+	trap_Cvar_Register( NULL, "g_matchState", "waiting", CVAR_SERVERINFO );
+	trap_Cvar_Register( NULL, "g_warmupEndTime", "0", CVAR_SERVERINFO );
+	trap_Cvar_Register( NULL, "g_levelStartTime", "0", CVAR_SERVERINFO );
+	trap_Cvar_Register( NULL, "g_levelTime", "0", CVAR_SERVERINFO );
+	trap_Cvar_Register( NULL, "g_flagStatus", "00", CVAR_SERVERINFO );
+	// Mission Pack specific stats cvars
+	trap_Cvar_Register( NULL, "g_obeliskHealthRed", "0", CVAR_SERVERINFO );
+	trap_Cvar_Register( NULL, "g_obeliskHealthBlue", "0", CVAR_SERVERINFO );
+	trap_Cvar_Register( NULL, "g_harvesterSkullsRed", "0", CVAR_SERVERINFO );
+	trap_Cvar_Register( NULL, "g_harvesterSkullsBlue", "0", CVAR_SERVERINFO );
 }
 
 /*
@@ -1233,6 +1245,8 @@ void BeginIntermission( void ) {
 	}
 
 	level.intermissiontime = level.time;
+	G_LogPrintf( "MatchState: intermission\n" );
+	G_UpdateMatchStateCvars();
 	FindIntermissionPoint();
 
 	// move all clients to the intermission point
@@ -1336,29 +1350,31 @@ void ExitLevel( void ) {
 G_LogPrintf
 
 Print to the logfile with a time stamp if it is open
+Format: ISO 8601 local timestamp, then message
 =================
 */
 void QDECL G_LogPrintf( const char *fmt, ... ) {
 	va_list		argptr;
 	char		string[BIG_INFO_STRING];
-	int			min, tsec, sec, len, n;
+	int			len, n, msgStart;
+	qtime_t		now;
 
-	tsec = level.time / 100;
-	sec = tsec / 10;
-	tsec %= 10;
-	min = sec / 60;
-	sec -= min * 60;
+	// ISO 8601 timestamp (local server time)
+	trap_RealTime( &now );
+	len = Com_sprintf( string, sizeof( string ), "%04i-%02i-%02iT%02i:%02i:%02i ",
+		now.tm_year + 1900, now.tm_mon + 1, now.tm_mday,
+		now.tm_hour, now.tm_min, now.tm_sec );
 
-	len = Com_sprintf( string, sizeof( string ), "%3i:%02i.%i ", min, sec, tsec );
+	msgStart = len;
 
 	va_start( argptr, fmt );
-	ED_vsprintf( string + len, fmt,argptr );
+	ED_vsprintf( string + len, fmt, argptr );
 	va_end( argptr );
 
 	n = (int)strlen( string );
 
 	if ( g_dedicated.integer ) {
-		G_Printf( "%s", string + len );
+		G_Printf( "%s", string + msgStart );
 	}
 
 	if ( level.logFile == FS_INVALID_HANDLE ) {
@@ -1670,7 +1686,68 @@ static void ClearBodyQue( void ) {
 }
 
 
-static void G_WarmupEnd( void ) 
+/*
+=================
+G_UpdateMatchStateCvars
+
+Update cvars that expose match state to external tools (e.g. stats collectors)
+=================
+*/
+void G_UpdateMatchStateCvars( void ) {
+	if ( level.warmupTime == -1 ) {
+		trap_Cvar_Set( "g_matchState", "waiting" );
+		trap_Cvar_Set( "g_warmupEndTime", "0" );
+	} else if ( level.warmupTime > 0 && level.warmupTime > level.time ) {
+		trap_Cvar_Set( "g_matchState", "warmup" );
+		trap_Cvar_Set( "g_warmupEndTime", va( "%d", level.warmupTime ) );
+	} else if ( level.intermissiontime ) {
+		trap_Cvar_Set( "g_matchState", "intermission" );
+		trap_Cvar_Set( "g_warmupEndTime", "0" );
+	} else {
+		trap_Cvar_Set( "g_matchState", "active" );
+		trap_Cvar_Set( "g_warmupEndTime", "0" );
+	}
+	trap_Cvar_Set( "g_levelStartTime", va( "%d", level.startTime ) );
+
+	// Flag status for CTF/1FCTF: "<red_status>:<red_carrier>,<blue_status>:<blue_carrier>"
+	if ( g_gametype.integer == GT_CTF ) {
+		int redCarrier = Team_GetFlagCarrier( PW_REDFLAG );
+		int blueCarrier = Team_GetFlagCarrier( PW_BLUEFLAG );
+		trap_Cvar_Set( "g_flagStatus", va( "%d:%d,%d:%d",
+			teamgame.redStatus, redCarrier,
+			teamgame.blueStatus, blueCarrier ) );
+	} else if ( g_gametype.integer == GT_1FCTF ) {
+		trap_Cvar_Set( "g_flagStatus", va( "%d", teamgame.flagStatus ) );
+	}
+
+	// Obelisk health for GT_OBELISK
+	if ( g_gametype.integer == GT_OBELISK ) {
+		trap_Cvar_Set( "g_obeliskHealthRed", va( "%d",
+			teamgame.redObelisk ? teamgame.redObelisk->health : 0 ) );
+		trap_Cvar_Set( "g_obeliskHealthBlue", va( "%d",
+			teamgame.blueObelisk ? teamgame.blueObelisk->health : 0 ) );
+	}
+
+	// Harvester skulls: count skulls held by each team
+	if ( g_gametype.integer == GT_HARVESTER ) {
+		int i, redSkulls = 0, blueSkulls = 0;
+		gclient_t *cl;
+		for ( i = 0; i < level.maxclients; i++ ) {
+			cl = &level.clients[i];
+			if ( cl->pers.connected != CON_CONNECTED )
+				continue;
+			if ( cl->sess.sessionTeam == TEAM_RED )
+				redSkulls += cl->ps.generic1;
+			else if ( cl->sess.sessionTeam == TEAM_BLUE )
+				blueSkulls += cl->ps.generic1;
+		}
+		trap_Cvar_Set( "g_harvesterSkullsRed", va( "%d", redSkulls ) );
+		trap_Cvar_Set( "g_harvesterSkullsBlue", va( "%d", blueSkulls ) );
+	}
+}
+
+
+static void G_WarmupEnd( void )
 {
 	gclient_t *client;
 	gentity_t *ent;
@@ -1687,11 +1764,15 @@ static void G_WarmupEnd( void )
 	level.warmupTime = 0;
 	level.startTime = level.time;
 
+	G_LogPrintf( "WarmupEnd:\n" );
+	G_LogPrintf( "MatchState: active\n" );
+	G_UpdateMatchStateCvars();
+
 	trap_SetConfigstring( CS_SCORES1, "0" );
 	trap_SetConfigstring( CS_SCORES2, "0" );
 	trap_SetConfigstring( CS_WARMUP, "" );
 	trap_SetConfigstring( CS_LEVEL_START_TIME, va( "%i", level.startTime ) );
-	
+
 	client = level.clients;
 	for ( i = 0; i < level.maxclients; i++, client++ ) {
 		
@@ -1820,6 +1901,8 @@ static void CheckTournament( void ) {
 				level.warmupTime = -1;
 				trap_SetConfigstring( CS_WARMUP, va("%i", level.warmupTime) );
 				G_LogPrintf( "Warmup:\n" );
+				G_LogPrintf( "MatchState: waiting\n" );
+				G_UpdateMatchStateCvars();
 			}
 			return;
 		}
@@ -1839,11 +1922,17 @@ static void CheckTournament( void ) {
 			if ( level.numPlayingClients == 2 ) {
 				if ( g_warmup.integer > 0 ) {
 					level.warmupTime = level.time + g_warmup.integer * 1000;
+					G_LogPrintf( "Warmup: %d\n", g_warmup.integer );
+					G_LogPrintf( "MatchState: warmup %d\n", g_warmup.integer );
 				} else {
 					level.warmupTime = 0;
+					level.startTime = level.time;
+					G_LogPrintf( "WarmupEnd:\n" );
+					G_LogPrintf( "MatchState: active\n" );
 				}
 
 				trap_SetConfigstring( CS_WARMUP, va("%i", level.warmupTime) );
+				G_UpdateMatchStateCvars();
 			}
 			return;
 		}
@@ -1873,6 +1962,8 @@ static void CheckTournament( void ) {
 				level.warmupTime = -1;
 				trap_SetConfigstring( CS_WARMUP, va("%i", level.warmupTime) );
 				G_LogPrintf( "Warmup:\n" );
+				G_LogPrintf( "MatchState: waiting\n" );
+				G_UpdateMatchStateCvars();
 			}
 			return; // still waiting for team members
 		}
@@ -1891,11 +1982,17 @@ static void CheckTournament( void ) {
 		if ( level.warmupTime < 0 ) {
 			if ( g_warmup.integer > 0 ) {
 				level.warmupTime = level.time + g_warmup.integer * 1000;
+				G_LogPrintf( "Warmup: %d\n", g_warmup.integer );
+				G_LogPrintf( "MatchState: warmup %d\n", g_warmup.integer );
 			} else {
 				level.warmupTime = 0;
+				level.startTime = level.time;
+				G_LogPrintf( "WarmupEnd:\n" );
+				G_LogPrintf( "MatchState: active\n" );
 			}
 
 			trap_SetConfigstring( CS_WARMUP, va("%i", level.warmupTime) );
+			G_UpdateMatchStateCvars();
 			return;
 		}
 
@@ -2170,6 +2267,11 @@ static void G_RunFrame( int levelTime ) {
 
 	// get any cvar changes
 	G_UpdateCvars();
+
+	// update level time cvar once per second for external stats tools
+	if ( level.time / 1000 != level.previousTime / 1000 ) {
+		trap_Cvar_Set( "g_levelTime", va( "%d", level.time ) );
+	}
 
 	numMissiles = 0;
 

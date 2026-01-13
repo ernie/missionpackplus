@@ -731,7 +731,19 @@ gentity_t *Drop_Item( gentity_t *ent, gitem_t *item, float angle ) {
 	AngleVectors( angles, velocity, NULL, NULL );
 	VectorScale( velocity, 150, velocity );
 	velocity[2] += 200 + crandom() * 50;
-	
+
+	// Log flag drops with player name for stats tracking
+	if ( item->giType == IT_TEAM && ent->client ) {
+		int team = TEAM_FREE;
+		if ( item->giTag == PW_REDFLAG ) {
+			team = TEAM_RED;
+		} else if ( item->giTag == PW_BLUEFLAG ) {
+			team = TEAM_BLUE;
+		}
+		G_LogPrintf( "FlagDrop: %d %d: %s\n",
+			ent->client->ps.clientNum, team, ent->client->pers.netname );
+	}
+
 	return LaunchItem( item, ent->s.pos.trBase, velocity );
 }
 

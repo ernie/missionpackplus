@@ -565,6 +565,9 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 				attacker->client->ps.eFlags &= ~(EF_AWARD_IMPRESSIVE | EF_AWARD_EXCELLENT | EF_AWARD_GAUNTLET | EF_AWARD_ASSIST | EF_AWARD_DEFEND | EF_AWARD_CAP );
 				attacker->client->ps.eFlags |= EF_AWARD_EXCELLENT;
 				attacker->client->rewardTime = level.time + REWARD_SPRITE_TIME;
+
+				G_LogPrintf( "Award: %d excellent: %s\n",
+					attacker->client->ps.clientNum, attacker->client->pers.netname );
 			}
 			attacker->client->lastKillTime = level.time;
 
