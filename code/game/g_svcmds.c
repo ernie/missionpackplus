@@ -424,6 +424,9 @@ void	Svcmd_ForceTeam_f( void ) {
 void Svcmd_Rotate_f( void ) {
 	char	str[MAX_TOKEN_CHARS];
 
+	// Log exit with scores before rotating to new map
+	LogExit( "Rotation." );
+
 	if ( trap_Argc() >= 2 ) {
 		trap_Argv( 1, str, sizeof( str ) );
 		if ( atoi( str ) > 0 ) {

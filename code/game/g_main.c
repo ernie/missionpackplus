@@ -2057,10 +2057,15 @@ CheckVote
 ==================
 */
 static void CheckVote( void ) {
-	
+
 	if ( level.voteExecuteTime ) {
 		 if ( level.voteExecuteTime < level.time ) {
 			level.voteExecuteTime = 0;
+			// Log exit with scores before executing map-changing votes
+			if ( !Q_strncmp( level.voteString, "map ", 4 ) ||
+				 !Q_strncmp( level.voteString, "g_gametype ", 11 ) ) {
+				LogExit( "Vote passed." );
+			}
 			trap_SendConsoleCommand( EXEC_APPEND, va( "%s\n", level.voteString ) );
 		 }
 		 return;
