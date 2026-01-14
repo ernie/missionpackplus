@@ -608,6 +608,38 @@ static void G_LocateSpawnSpots( void )
 
 
 /*
+==================
+G_GenerateMatchUUID
+
+Generate a UUID v4 (random) for match identification.
+Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+==================
+*/
+static void G_GenerateMatchUUID( char *out, int size ) {
+	static const char hex[] = "0123456789abcdef";
+	int i;
+
+	if ( size < 37 ) {
+		out[0] = '\0';
+		return;
+	}
+
+	for ( i = 0; i < 36; i++ ) {
+		if ( i == 8 || i == 13 || i == 18 || i == 23 ) {
+			out[i] = '-';
+		} else if ( i == 14 ) {
+			out[i] = '4';  // UUID version 4
+		} else if ( i == 19 ) {
+			out[i] = hex[(rand() & 0x3) | 0x8];  // variant bits
+		} else {
+			out[i] = hex[rand() & 0xf];
+		}
+	}
+	out[36] = '\0';
+}
+
+
+/*
 ============
 G_InitGame
 
@@ -655,6 +687,9 @@ static void G_InitGame( int levelTime, int randomSeed, int restart ) {
 
 	level.snd_fry = G_SoundIndex("sound/player/fry.wav");	// FIXME standing in lava / slime
 
+	// Generate unique match identifier
+	G_GenerateMatchUUID( level.matchUUID, sizeof( level.matchUUID ) );
+
 	if ( g_gametype.integer != GT_SINGLE_PLAYER && g_log.string[0] ) {
 		if ( g_logSync.integer ) {
 			trap_FS_FOpenFile( g_log.string, &level.logFile, FS_APPEND_SYNC );
@@ -669,7 +704,7 @@ static void G_InitGame( int levelTime, int randomSeed, int restart ) {
 			trap_GetServerinfo( serverinfo, sizeof( serverinfo ) );
 
 			G_LogPrintf("------------------------------------------------------------\n" );
-			G_LogPrintf("InitGame: %s\n", serverinfo );
+			G_LogPrintf("InitGame: \\g_matchUUID\\%s%s\n", level.matchUUID, serverinfo );
 		}
 	} else {
 		G_Printf( "Not logging to disk.\n" );
@@ -762,7 +797,7 @@ static void G_ShutdownGame( int restart )
 	G_Printf ("==== ShutdownGame ====\n");
 
 	if ( level.logFile != FS_INVALID_HANDLE ) {
-		G_LogPrintf("ShutdownGame:\n" );
+		G_LogPrintf("ShutdownGame: \\g_matchUUID\\%s\n", level.matchUUID );
 		G_LogPrintf("------------------------------------------------------------\n" );
 		trap_FS_FCloseFile( level.logFile );
 		level.logFile = FS_INVALID_HANDLE;
@@ -1398,7 +1433,7 @@ void LogExit( const char *string ) {
 #ifdef MISSIONPACK
 	qboolean won = qtrue;
 #endif
-	G_LogPrintf( "Exit: %s\n", string );
+	G_LogPrintf( "Exit: %s \\g_matchUUID\\%s\n", string, level.matchUUID );
 
 	level.intermissionQueued = level.time;
 

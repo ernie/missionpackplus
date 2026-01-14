@@ -471,6 +471,9 @@ typedef struct {
 	// unlagged
 	int			frameStartTime;
 
+	// match identification
+	char		matchUUID[37];			// unique match identifier (UUID format)
+
 } level_locals_t;
 
 
