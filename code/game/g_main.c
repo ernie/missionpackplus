@@ -613,16 +613,25 @@ G_GenerateMatchUUID
 
 Generate a UUID v4 (random) for match identification.
 Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+Uses trap_Milliseconds() and server port for additional entropy to ensure
+uniqueness across multiple servers started simultaneously.
 ==================
 */
 static void G_GenerateMatchUUID( char *out, int size ) {
 	static const char hex[] = "0123456789abcdef";
 	int i;
+	int port;
+	unsigned int seed;
 
 	if ( size < 37 ) {
 		out[0] = '\0';
 		return;
 	}
+
+	// Add entropy from milliseconds timer and server port
+	port = trap_Cvar_VariableIntegerValue( "net_port" );
+	seed = (unsigned int)trap_Milliseconds() ^ (port * 65537);
+	srand( seed );
 
 	for ( i = 0; i < 36; i++ ) {
 		if ( i == 8 || i == 13 || i == 18 || i == 23 ) {
