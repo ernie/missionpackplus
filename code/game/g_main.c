@@ -1433,7 +1433,14 @@ void LogExit( const char *string ) {
 #ifdef MISSIONPACK
 	qboolean won = qtrue;
 #endif
-	G_LogPrintf( "Exit: %s \\g_matchUUID\\%s\n", string, level.matchUUID );
+	// Include team scores in Exit line for team game types
+	if ( g_gametype.integer >= GT_TEAM ) {
+		G_LogPrintf( "Exit: %s \\g_matchUUID\\%s\\g_redScore\\%i\\g_blueScore\\%i\n",
+			string, level.matchUUID,
+			level.teamScores[TEAM_RED], level.teamScores[TEAM_BLUE] );
+	} else {
+		G_LogPrintf( "Exit: %s \\g_matchUUID\\%s\n", string, level.matchUUID );
+	}
 
 	level.intermissionQueued = level.time;
 
@@ -1445,11 +1452,6 @@ void LogExit( const char *string ) {
 	numSorted = level.numConnectedClients;
 	if ( numSorted > 32 ) {
 		numSorted = 32;
-	}
-
-	if ( g_gametype.integer >= GT_TEAM ) {
-		G_LogPrintf( "red:%i  blue:%i\n",
-			level.teamScores[TEAM_RED], level.teamScores[TEAM_BLUE] );
 	}
 
 	for (i=0 ; i < numSorted ; i++) {
