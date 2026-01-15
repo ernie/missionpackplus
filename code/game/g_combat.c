@@ -542,9 +542,12 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 			AddScore( attacker, self->r.currentOrigin, 1 );
 
 			if( meansOfDeath == MOD_GAUNTLET ) {
-				
+
 				// play humiliation on player
 				attacker->client->ps.persistant[PERS_GAUNTLET_FRAG_COUNT]++;
+
+				G_LogPrintf( "Award: %d gauntlet: %s\n",
+					attacker->client->ps.clientNum, attacker->client->pers.netname );
 
 				// add the sprite over the player's head
 				attacker->client->ps.eFlags &= ~(EF_AWARD_IMPRESSIVE | EF_AWARD_EXCELLENT | EF_AWARD_GAUNTLET | EF_AWARD_ASSIST | EF_AWARD_DEFEND | EF_AWARD_CAP );

@@ -372,6 +372,8 @@ void Team_FragBonuses(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker
 		targ->client->pers.teamState.lasthurtcarrier = 0;
 
 		attacker->client->ps.persistant[PERS_DEFEND_COUNT]++;
+		G_LogPrintf( "Award: %d defend: %s\n",
+			attacker->client->ps.clientNum, attacker->client->pers.netname );
 		team = attacker->client->sess.sessionTeam;
 		// add the sprite over the player's head
 		attacker->client->ps.eFlags &= ~(EF_AWARD_IMPRESSIVE | EF_AWARD_EXCELLENT | EF_AWARD_GAUNTLET | EF_AWARD_ASSIST | EF_AWARD_DEFEND | EF_AWARD_CAP );
@@ -390,6 +392,8 @@ void Team_FragBonuses(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker
 		targ->client->pers.teamState.lasthurtcarrier = 0;
 
 		attacker->client->ps.persistant[PERS_DEFEND_COUNT]++;
+		G_LogPrintf( "Award: %d defend: %s\n",
+			attacker->client->ps.clientNum, attacker->client->pers.netname );
 		team = attacker->client->sess.sessionTeam;
 		// add the sprite over the player's head
 		attacker->client->ps.eFlags &= ~(EF_AWARD_IMPRESSIVE | EF_AWARD_EXCELLENT | EF_AWARD_GAUNTLET | EF_AWARD_ASSIST | EF_AWARD_DEFEND | EF_AWARD_CAP );
@@ -469,6 +473,8 @@ void Team_FragBonuses(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker
 		attacker->client->pers.teamState.basedefense++;
 
 		attacker->client->ps.persistant[PERS_DEFEND_COUNT]++;
+		G_LogPrintf( "Award: %d defend: %s\n",
+			attacker->client->ps.clientNum, attacker->client->pers.netname );
 		// add the sprite over the player's head
 		attacker->client->ps.eFlags &= ~(EF_AWARD_IMPRESSIVE | EF_AWARD_EXCELLENT | EF_AWARD_GAUNTLET | EF_AWARD_ASSIST | EF_AWARD_DEFEND | EF_AWARD_CAP );
 		attacker->client->ps.eFlags |= EF_AWARD_DEFEND;
@@ -490,6 +496,8 @@ void Team_FragBonuses(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker
 			attacker->client->pers.teamState.carrierdefense++;
 
 			attacker->client->ps.persistant[PERS_DEFEND_COUNT]++;
+			G_LogPrintf( "Award: %d defend: %s\n",
+				attacker->client->ps.clientNum, attacker->client->pers.netname );
 			// add the sprite over the player's head
 			attacker->client->ps.eFlags &= ~(EF_AWARD_IMPRESSIVE | EF_AWARD_EXCELLENT | EF_AWARD_GAUNTLET | EF_AWARD_ASSIST | EF_AWARD_DEFEND | EF_AWARD_CAP );
 			attacker->client->ps.eFlags |= EF_AWARD_DEFEND;
