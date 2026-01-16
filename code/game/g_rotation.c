@@ -21,7 +21,7 @@ qboolean G_MapExist( const char *map )
 }
 
 
-void G_LoadMap( const char *map ) 
+void G_LoadMap( const char *map )
 {
 	char cmd[ MAX_CVAR_VALUE_STRING ];
 	char ver[ 16 ];
@@ -29,13 +29,17 @@ void G_LoadMap( const char *map )
 
 	trap_Cvar_VariableStringBuffer( "version", ver, sizeof( ver ) );
 	if ( !Q_strncmp( ver, "Q3 1.32 ", 8 ) || !Q_strncmp( ver, "Q3 1.32b ", 9 ) ||
-		!Q_strncmp( ver, "Q3 1.32c ", 9 ) ) 
+		!Q_strncmp( ver, "Q3 1.32c ", 9 ) )
 		version = 0; // buggy vanilla binaries
 	else
 		version = 1;
 
 	if ( !map || !*map || !G_MapExist( map ) || !Q_stricmp( map, g_mapname.string ) ) {
-		if ( level.time > 12*60*60*1000 || version == 0 || level.denyMapRestart )
+		// Already on the correct map - on first init (denyMapRestart), skip the reload
+		if ( level.denyMapRestart ) {
+			return;
+		}
+		if ( level.time > 12*60*60*1000 || version == 0 )
 			BG_sprintf( cmd, "map \"%s\"\n", g_mapname.string );
 		else
 			Q_strcpy( cmd, "map_restart 0\n" );

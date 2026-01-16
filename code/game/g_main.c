@@ -609,39 +609,92 @@ static void G_LocateSpawnSpots( void )
 
 /*
 ==================
+xorshift128 PRNG - period 2^128-1
+==================
+*/
+typedef struct { unsigned int s[4]; } xorshift128_state;
+
+static unsigned int xorshift128( xorshift128_state *state ) {
+	unsigned int t = state->s[3];
+	unsigned int s = state->s[0];
+	state->s[3] = state->s[2];
+	state->s[2] = state->s[1];
+	state->s[1] = s;
+	t ^= t << 11;
+	t ^= t >> 8;
+	state->s[0] = t ^ s ^ (s >> 19);
+	return state->s[0];
+}
+
+/*
+==================
+mix32 - MurmurHash3 finalizer - mixes entropy
+==================
+*/
+static unsigned int mix32( unsigned int h ) {
+	h ^= h >> 16;
+	h *= 0x85ebca6b;
+	h ^= h >> 13;
+	h *= 0xc2b2ae35;
+	h ^= h >> 16;
+	return h;
+}
+
+/*
+==================
 G_GenerateMatchUUID
 
 Generate a UUID v4 (random) for match identification.
 Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-Uses trap_Milliseconds() and server port for additional entropy to ensure
-uniqueness across multiple servers started simultaneously.
+Uses xorshift128 PRNG with mixed entropy sources for high-quality randomness.
 ==================
 */
 static void G_GenerateMatchUUID( char *out, int size ) {
 	static const char hex[] = "0123456789abcdef";
+	static unsigned int counter = 0;
+	xorshift128_state rng;
 	int i;
 	int port;
-	unsigned int seed;
+	unsigned int rand_val;
+	qtime_t now;
+	int msec;
 
 	if ( size < 37 ) {
 		out[0] = '\0';
 		return;
 	}
 
-	// Add entropy from milliseconds timer and server port
+	trap_RealTime( &now );
 	port = trap_Cvar_VariableIntegerValue( "net_port" );
-	seed = (unsigned int)trap_Milliseconds() ^ (port * 65537);
-	srand( seed );
+	msec = trap_Milliseconds();
 
+	// Initialize 128-bit PRNG state with mixed entropy
+	rng.s[0] = mix32( (unsigned int)(now.tm_sec + now.tm_min * 60 + now.tm_hour * 3600) ^ (msec * 2654435761u) );
+	rng.s[1] = mix32( (unsigned int)(now.tm_yday + now.tm_year * 366) ^ (port * 65537u) ^ (++counter) );
+	rng.s[2] = mix32( (unsigned int)(size_t)&rng ^ (unsigned int)(size_t)&now ^ msec );
+	rng.s[3] = mix32( (unsigned int)(now.tm_mon + now.tm_mday * 12) ^ (counter * 2654435761u) ^ (unsigned int)(size_t)out );
+
+	// Ensure no zero state (xorshift requirement)
+	if ( rng.s[0] == 0 ) rng.s[0] = 0x12345678;
+	if ( rng.s[1] == 0 ) rng.s[1] = 0x9abcdef0;
+	if ( rng.s[2] == 0 ) rng.s[2] = 0xfedcba98;
+	if ( rng.s[3] == 0 ) rng.s[3] = 0x76543210;
+
+	// Warm up PRNG
+	for ( i = 0; i < 16; i++ ) xorshift128( &rng );
+
+	// Generate UUID
 	for ( i = 0; i < 36; i++ ) {
 		if ( i == 8 || i == 13 || i == 18 || i == 23 ) {
 			out[i] = '-';
 		} else if ( i == 14 ) {
 			out[i] = '4';  // UUID version 4
 		} else if ( i == 19 ) {
-			out[i] = hex[(rand() & 0x3) | 0x8];  // variant bits
+			rand_val = xorshift128( &rng );
+			out[i] = hex[(rand_val & 0x3) | 0x8];  // variant bits
 		} else {
-			out[i] = hex[rand() & 0xf];
+			rand_val = xorshift128( &rng );
+			out[i] = hex[rand_val & 0xf];
 		}
 	}
 	out[36] = '\0';
@@ -801,7 +854,7 @@ static void G_InitGame( int levelTime, int randomSeed, int restart ) {
 G_ShutdownGame
 =================
 */
-static void G_ShutdownGame( int restart ) 
+static void G_ShutdownGame( int restart )
 {
 	G_Printf ("==== ShutdownGame ====\n");
 
